@@ -1100,8 +1100,9 @@
         updateSyncStatus('Sincronizando...', 'warn');
         $('#syncButton').disabled = true;
 
+        let response;
         try {
-          const response = await fetch('/.netlify/functions/sync-prospectos', {
+          response = await fetch('/.netlify/functions/sync-prospectos', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1109,9 +1110,28 @@
             },
             body: JSON.stringify({ prospectos: leads, deleted_ids: deletedItems })
           });
+        } catch (networkError) {
+          console.error('sync network', networkError);
+          updateSyncStatus('Offline — salvo localmente', 'err');
+          syncInFlight = false;
+          $('#syncButton').disabled = false;
+          return;
+        }
+
+        try {
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || !payload.ok) {
-            throw new Error(payload.erro || `Falha HTTP ${response.status}`);
+            if (response.status === 401) {
+              updateSyncStatus('Chave incorreta — não sincronizado', 'err');
+              toast('A chave salva não bate com a configurada no servidor. Abra "🔐 Chave" e confira.');
+            } else if (response.status === 500) {
+              updateSyncStatus('Servidor de sincronização indisponível', 'err');
+              toast('O servidor de sincronização está com um problema de configuração.');
+            } else {
+              updateSyncStatus('Falha ao sincronizar', 'err');
+              toast(payload.erro || `Falha ao sincronizar (HTTP ${response.status}).`);
+            }
+            return;
           }
           mergeServerState(payload.prospectos || [], payload.deleted_ids || []);
           persist();
@@ -1119,7 +1139,7 @@
           updateSyncStatus(`Sincronizado às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 'ok');
         } catch (error) {
           console.error('sync', error);
-          updateSyncStatus('Offline — salvo localmente', 'err');
+          updateSyncStatus('Falha ao sincronizar', 'err');
         } finally {
           syncInFlight = false;
           $('#syncButton').disabled = false;
