@@ -1,0 +1,12 @@
+{
+  "name": "crm-leak-stop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leak Stop CRM - static frontend with Netlify Functions backend",
+  "scripts": {
+    "build": "echo 'Static site - no build step required'"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
